@@ -1,3 +1,14 @@
+var express = require('express'); //importing express in the node program
+
+var app = express();
+var server = app.listen(8200);
+
+app.use(express.static('public'));
+
+
+
+
+
 var loaded;
 var Img = []; //Array for billede-objekter
 var xPs = 0; //Startkoordinat for billede; værdierne ændres i løbet af koden
