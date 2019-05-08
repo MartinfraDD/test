@@ -1,82 +1,209 @@
-// Copyright (c) 2018 ml5
-//
-// This software is released under the MIT License.
-// https://opensource.org/licenses/MIT
+var loaded;
+var Img = []; //Array for billede-objekter
 
-/* ===
-ml5 Example
-Real time Object Detection using YOLO and p5.js
-=== */
+var xPs = 0; //Startkoordinat for billede; værdierne ændres i løbet af koden
+var yPs = 0; //Startkoordinat for billede; værdierne ændres i løbet af koden
+var alf = 0; //alpha-værdi til brug ved sløring
+var counter = 0; //Denne counter kontrollerer, hvilket billede, der skal indlæses og placeres i et objekt.
+var counter2 = 1 //Denne counter kontrollerer at canvas bliver større i windowsResized.
 
-let video;
-let yolo;
-let status;
-let objects = [];
-var c;
-var cycleNum = 8;
+var button;
+var bool = false; //to boolean values styrer forløbet ved klik på knap.
+var bool2 = false;
+var bool3 = false;
 
+var cloud;
+var startPointX;
+var startPointY;
+
+// var socket;
 
 function setup() {
-  c = createCanvas(320*2, 240*2);
-  video = createCapture(VIDEO);
-  video.size(320, 240);
+  createCanvas(windowWidth, 5000);
+  frameRate(8); //Kontrollerer hastighed
+  cloud = loadImage('cloud.png');
 
 
-  // Create a YOLO method
-  yolo = ml5.YOLO(video, startDetecting);
+  // socket = io.connect('http://localhost:8200')
 
-  // Hide the original video
-  video.hide();
-  status = select('#status');
-  frameRate(4);
+  button = createButton('Press me');
+  button.addClass('btn');
+  button.mousePressed(initiate);
 
+  takeSnap(counter); //programmet begynder fra start at indlæse nye billeder, som dukker op i directory. Uden brugerinput.
 }
 
-function draw() {
-  image(video, 0, 0, width, height);
+function initiate() {
+  button.hide();
+  alf = 0
+  bool = false
+  bool2 = true //Billeder bliver nu tegnet i draw ved klik på "press me"
+  bool3 = true
 
-  timeLoop();
+  setTimeout(function() { //Knappen skal først dukke op efter 7 sekunder
+    button = createButton('Delete data');
+    button.addClass('btn');
+    button.mousePressed(wipeOut);
+  }, 7000.5);
 }
 
-function timeLoop() {
-  let n = frameCount*2 % cycleNum;
-  for (let i = 0; i < objects.length; i++) {
-    if (objects[i].className === "person") {
-    noStroke();
-    fill(0, 255, 0);
-    text('You.', objects[i].x * width, objects[i].y * height - 5);
-    noFill();
-    strokeWeight(4);
-    stroke(0, 255, 0);
-    rect(objects[i].x * width, objects[i].y * height, objects[i].w * width, objects[i].h * height);
-    if (n == 0) {
-      saveCanvas(c, 'prototype','jpg');
+function wipeOut() {
+    bool = true //Billeder stopper med at blive tegnet og sletfasen begynder
+    bool2 = false;
+}
 
-    }
-    }
-    if (objects[i].className === "cell phone" || objects[i].className === "remote" ) {
-    noStroke();
-    fill(255, 0, 0);
-    text('Cell phone.', objects[i].x * width, objects[i].y * height - 5);
-    noFill();
-    strokeWeight(4);
-    stroke(255, 0, 0);
-    rect(objects[i].x * width, objects[i].y * height, objects[i].w * width, objects[i].h * height);
 
+function takeSnap(i) {
+
+  loaded = loadImage('media/prototype ('+(i+1)+').jpg', loadSucces, loadFail); //Udvælger billede fra folder på pc; alternerer ud fra "counter"
+//loaded = loadImage('https://raw.githubusercontent.com/Magnusaur/wizards_of_buzz.exe/master/Interaktionsdesign_2/Code/Sockets_in/public/media/prototype ('+(i+1)+').jpg', loadSucces, loadFail); //Udvælger billede fra folder på pc; alternerer ud fra "counter"
+
+  return loaded;
+}
+
+function loadSucces(img){
+  let x = windowWidth/5
+  let y = windowHeight/4
+
+  Img.push(new Imgs(img, xPs, yPs, x, y)); //placerer billede i et objekt, som selv placeres i et array
+  bool3 = true;
+
+  console.log('succes');
+
+  if ((xPs + x) > width-1) {
+    xPs = 0;
+    yPs += y;
+    // windowResized();
+  } else {
+    xPs += x
   }
-console.log(objects[i].className);
+
+  counter++ //counter stiger
+  takeSnap(counter); //processen kører i ring
+}
+
+function loadFail(){
+  // counter--;
+  // if(counter < 0){
+  //   counter = 0;
+  // }
+  console.log('fail');
+  takeSnap(counter); //processen kører i ring
+}
+
+
+function draw() { //Kassen tegnes i begyndelsen og farven bestemmes om et billede er indlæst (rød) eller ej (grøn).
+  if (bool == false && bool2 == false) {
+    push();
+    if(bool3 == true) {
+      fill(255, 0, 0);
+    } else if (bool3 == false) {
+      fill(90, 255, 70);
+    } rectMode(CENTER);
+      rect(windowWidth/2, windowHeight/2, 250, 200);
+      imageMode(CENTER);
+      image(cloud, windowWidth/2, windowHeight/2, 240, 200);
+      fill(0);
+      startPointX = windowWidth/2;
+      startPointY = windowHeight/2;
+      if (bool3 == true) {
+        loadingMark1(startPointX, startPointY);
+        loadingMark2(startPointX, startPointY);
+      } else if (bool3 == false) {
+        checkMark(startPointX, startPointY);
+      }
+      pop();
+  }
+  if (bool == true) { //sløring af billeder
+    if (alf == 150) {
+      clear();
+      button = createButton('Press me');
+      button.addClass('btn');
+      button.mousePressed(initiate);
+      bool = false;
+    } else {
+      background(255, alf);
+      alf += 10
     }
+  }
+  if (bool2 == true && bool3 == true) { //billeder tegnes
+    let i = 0;
+    var intervalId = setInterval(function() { //billeder er allerede indlæst, men funktionen her sørger for at tegne dem tidsforskudt for hinanden
+      if(i == Img.length || bool2 == false) {
+        i--
+        clearInterval(intervalId);
+      }
+      Img[i].display();
+      i++
+    }, 100) //0.06 sekunder
+  }
+  bool3 = false;
+}
+
+function checkMark(pointX, pointY) {
+  pointX = pointX - 25;
+  pointY = pointY + 15;
+  beginShape();
+  vertex(pointX, pointY);
+  vertex(pointX + 10, pointY);
+  vertex(pointX + 20, pointY + 20);
+  vertex(pointX + 55, pointY - 35);
+  vertex(pointX + 65, pointY - 35);
+  vertex(pointX + 20, pointY + 40);
+  vertex(pointX, pointY);
+  endShape(CLOSE);
+}
+
+function loadingMark1(pointX, pointY) {
+  beginShape();
+  pointY = pointY + 20;
+  vertex(pointX + 40, pointY + 10);
+  vertex(pointX + 50, pointY + 10);
+  vertex(pointX + 50, pointY - 30);
+  vertex(pointX - 20, pointY - 30);
+  vertex(pointX - 20, pointY - 35);
+  vertex(pointX - 30, pointY - 25);
+  vertex(pointX - 20, pointY - 15);
+  vertex(pointX - 20, pointY - 20);
+  vertex(pointX + 40, pointY - 20);
+  vertex(pointX + 40, pointY + 10);
+  endShape(CLOSE);
+}
+
+function loadingMark2(pointX, pointY) {
+  beginShape();
+  pointY = pointY + 20;
+  vertex(pointX - 40, pointY - 10);
+  vertex(pointX - 50, pointY - 10);
+  vertex(pointX - 50, pointY + 30);
+  vertex(pointX + 20, pointY + 30);
+  vertex(pointX + 20, pointY + 35);
+  vertex(pointX + 30, pointY + 25);
+  vertex(pointX + 20, pointY + 15);
+  vertex(pointX + 20, pointY + 20);
+  vertex(pointX - 40, pointY + 20);
+  vertex(pointX - 40, pointY - 10);
+  endShape(CLOSE);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight + windowHeight/4*counter2);
+  counter2++
 }
 
 
-function startDetecting() {
-  status.html('Model loaded!');
-  detect();
-}
 
-function detect() {
-  yolo.detect(function(err, results) {
-    objects = results;
-    detect();
-  });
+
+class Imgs {
+  constructor(loaded, xPs, yPs, x, y) {
+    this.loaded = loaded;
+    this.xPs = xPs; //startposition
+    this.yPs = yPs;
+    this.x = x; //størrelse på billede
+    this.y = y;
+  }
+
+  display() {
+    image(this.loaded, this.xPs, this.yPs, this.x, this.y);
+  }
 }
